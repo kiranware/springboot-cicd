@@ -1,13 +1,17 @@
 pipeline {
   agent any
 
+  options {
+    skipDefaultCheckout(true)
+  }
+
   environment {
     DOCKERHUB_USER = "kiranwaredockerpoc"
     APP_NAME       = "springboot-cicd"
     IMAGE_REPO     = "${DOCKERHUB_USER}/${APP_NAME}"
 
-    DOCKERHUB_CREDS_ID    = "dockerhub-creds"
-    GITHUB_TOKEN_CREDS_ID = "github-token"
+    DOCKERHUB_CREDS_ID     = "dockerhub-creds"
+    GITHUB_TOKEN_CREDS_ID  = "github-token"
 
     MANIFESTS_REPO_DIR = "manifests-repo"
   }
