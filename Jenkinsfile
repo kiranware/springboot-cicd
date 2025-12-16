@@ -5,8 +5,8 @@ pipeline {
     DOCKERHUB_USER = "kiranwaredockerpoc"
     APP_NAME = "springboot-cicd"
     IMAGE_REPO = "${DOCKERHUB_USER}/${APP_NAME}"
+    IMAGE_TAG = "${BUILD_NUMBER}"
 
-    MANIFESTS_REPO_URL = "https://github.com/kiranware/springboot-cicd-manifests.git"
     MANIFESTS_REPO_DIR = "manifests-repo"
 
     DOCKERHUB_CREDS_ID = "dockerhub-creds"
@@ -20,23 +20,14 @@ pipeline {
 
     stage('Build & Test') {
       steps {
-        sh """
-          docker run --rm \
-            -u \$(id -u):\$(id -g) \
-            -v "\$PWD":/workspace \
-            -w /workspace \
-            maven:3.9.9-eclipse-temurin-17 \
-            mvn -B clean test
-        """
+        sh "chmod +x mvnw || true"
+        sh "./mvnw -B clean test"
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        script {
-          env.IMAGE_TAG = "${BUILD_NUMBER}"
-          sh "docker build -t ${IMAGE_REPO}:${IMAGE_TAG} ."
-        }
+        sh "docker build -t ${IMAGE_REPO}:${IMAGE_TAG} ."
       }
     }
 
@@ -44,7 +35,7 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDS_ID, usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
           sh """
-            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
+            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
             docker push ${IMAGE_REPO}:${IMAGE_TAG}
           """
         }
@@ -56,11 +47,10 @@ pipeline {
         withCredentials([string(credentialsId: GITHUB_TOKEN_CREDS_ID, variable: 'GITHUB_TOKEN')]) {
           sh """
             rm -rf ${MANIFESTS_REPO_DIR}
-            git clone https://\$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
+            git clone https://$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
             cd ${MANIFESTS_REPO_DIR}
 
-            # Update image line
-            sed -i "s#^\\s*image:.*#        image: ${IMAGE_REPO}:${IMAGE_TAG}#g" k8s/deployment.yaml
+            sed -i 's#image: .*#image: ${IMAGE_REPO}:${IMAGE_TAG}#' k8s/deployment.yaml
 
             git config user.email "jenkins@local"
             git config user.name "jenkins-bot"
