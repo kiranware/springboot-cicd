@@ -1,16 +1,11 @@
 pipeline {
   agent any
 
-  options {
-    // Keeps workspace clean and avoids old/corrupt .git issues
-    skipDefaultCheckout(true)
-  }
-
   environment {
     DOCKERHUB_USER = "kiranwaredockerpoc"
     APP_NAME = "springboot-cicd"
     IMAGE_REPO = "${DOCKERHUB_USER}/${APP_NAME}"
-    IMAGE_TAG  = "${BUILD_NUMBER}"
+    IMAGE_TAG = "${BUILD_NUMBER}"
 
     MANIFESTS_REPO_DIR = "manifests-repo"
 
@@ -20,24 +15,12 @@ pipeline {
 
   stages {
 
-    stage('Clean + Checkout') {
-      steps {
-        // Clean old workspace (important)
-        deleteDir()
-
-        // Checkout your application repo into workspace
-        checkout scm
-
-        // Debug: confirm files exist
-        sh "pwd"
-        sh "ls -la"
-      }
-    }
-
     stage('Build & Test') {
       steps {
-        sh "chmod +x mvnw || true"
-        sh "./mvnw -B clean test"
+        sh '''
+          chmod +x mvnw || true
+          ./mvnw -B clean test
+        '''
       }
     }
 
@@ -49,31 +32,39 @@ pipeline {
 
     stage('Push Image to DockerHub') {
       steps {
-        withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDS_ID, usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-          sh """
-            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
+        withCredentials([
+          usernamePassword(
+            credentialsId: DOCKERHUB_CREDS_ID,
+            usernameVariable: 'DH_USER',
+            passwordVariable: 'DH_PASS'
+          )
+        ]) {
+          sh '''
+            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
             docker push ${IMAGE_REPO}:${IMAGE_TAG}
-          """
+          '''
         }
       }
     }
 
     stage('Update K8s Manifests Repo') {
       steps {
-        withCredentials([string(credentialsId: GITHUB_TOKEN_CREDS_ID, variable: 'GITHUB_TOKEN')]) {
-          sh """
+        withCredentials([
+          string(credentialsId: GITHUB_TOKEN_CREDS_ID, variable: 'GITHUB_TOKEN')
+        ]) {
+          sh '''
             rm -rf ${MANIFESTS_REPO_DIR}
-            git clone https://\$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
+            git clone https://$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
             cd ${MANIFESTS_REPO_DIR}
 
-            sed -i 's#image: .*#image: ${IMAGE_REPO}:${IMAGE_TAG}#' k8s/deployment.yaml
+            sed -i 's#image: .*#image: ${IMAGE_REPO}:${IMAGE_TAG}#' deployment.yaml
 
             git config user.email "jenkins@local"
             git config user.name "jenkins-bot"
-            git add k8s/deployment.yaml
+            git add deployment.yaml
             git commit -m "Update image to ${IMAGE_REPO}:${IMAGE_TAG}" || echo "No changes"
             git push
-          """
+          '''
         }
       }
     }
