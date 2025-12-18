@@ -5,7 +5,7 @@ pipeline {
     DOCKERHUB_USER = "kiranwaredockerpoc"
     APP_NAME = "springboot-cicd"
     IMAGE_REPO = "${DOCKERHUB_USER}/${APP_NAME}"
-    IMAGE_TAG = "${BUILD_NUMBER}"
+    IMAGE_TAG  = "${BUILD_NUMBER}"
 
     MANIFESTS_REPO_DIR = "manifests-repo"
 
@@ -52,19 +52,19 @@ pipeline {
         withCredentials([
           string(credentialsId: GITHUB_TOKEN_CREDS_ID, variable: 'GITHUB_TOKEN')
         ]) {
-          sh '''
+          sh """
             rm -rf ${MANIFESTS_REPO_DIR}
-            git clone https://$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
+            git clone https://\$GITHUB_TOKEN@github.com/kiranware/springboot-cicd-manifests.git ${MANIFESTS_REPO_DIR}
             cd ${MANIFESTS_REPO_DIR}
 
-            sed -i 's#image: .*#image: ${IMAGE_REPO}:${IMAGE_TAG}#' deployment.yaml
+            sed -i "s#image: .*#image: ${IMAGE_REPO}:${IMAGE_TAG}#" deployment.yaml
 
             git config user.email "jenkins@local"
             git config user.name "jenkins-bot"
             git add deployment.yaml
             git commit -m "Update image to ${IMAGE_REPO}:${IMAGE_TAG}" || echo "No changes"
             git push
-          '''
+          """
         }
       }
     }
