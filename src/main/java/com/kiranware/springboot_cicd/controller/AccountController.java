@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
     @GetMapping
     public String getAccountDetails() {
-        return "Account belong to KIRAN WARE.";
+        return "Account belong to KIRAN WARE and POOJA Andhale.";
     }
 }
